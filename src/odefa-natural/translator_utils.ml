@@ -1,5 +1,3 @@
-open Batteries;;
-
 open Odefa_ast;;
 
 type translation_context =
@@ -16,7 +14,9 @@ let new_translation_context (suffix : string) : translation_context =
 
 module TranslationMonad :
 sig
-  include Monad.Monad;;
+  type 'a m;;
+  include Jhupllib.Monads.Monad with type 'a m := 'a m;;
+  include Jhupllib.Monads.Utils with type 'a m := 'a m;;
   val run : translation_context -> 'a m -> 'a;;
   val fresh_name : string -> string m;;
   val fresh_var : string -> Ast.var m;;
@@ -26,15 +26,15 @@ sig
   val (@@@) : ('a -> 'b m) -> 'a m -> 'b m
 end =
 struct
-  include Monad.Make(
-    struct
-      type 'a m = translation_context -> 'a;;
-      let return (x : 'a) : 'a m = (fun _ -> x);;
-      let bind (x : 'a m) (f : 'a -> 'b m) : 'b m =
-        fun ctx -> f (x ctx) ctx
-      ;;
-    end
-    );;
+  module Base = struct
+    type 'a m = translation_context -> 'a;;
+    let pure (x : 'a) : 'a m = (fun _ -> x);;
+    let bind (x : 'a m) (f : 'a -> 'b m) : 'b m =
+      fun ctx -> f (x ctx) ctx
+    ;;
+  end;;
+  include Base;;
+  include Jhupllib.Monads.MakeUtils(Base);;
   let run ctx m =
     m ctx
   ;;

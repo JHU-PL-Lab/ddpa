@@ -58,9 +58,7 @@ let ident_map_map_m (fn : 'a -> 'b m) (m : 'a On_ast.Ident_map.t)
   m
   |> On_ast.Ident_map.enum
   |> Enum.map (fun (k,v) -> let%bind v' = fn v in return (k,v'))
-  |> List.of_enum
   |> sequence
-  |> lift1 List.enum
   |> lift1 On_ast.Ident_map.of_enum
 ;;
 
@@ -91,13 +89,13 @@ let rec rec_transform (e1 : On_ast.expr) : On_ast.expr m =
           let (On_ast.Funsig (id, _, _)) = single_sig
           in id) fun_sig_list
     in
-    let%bind new_names =
-      sequence @@ List.map
+    let%bind new_names = lift1 List.of_enum @@
+      sequence @@ Enum.map
         (fun (On_ast.Ident old_name) ->
            let%bind new_name = fresh_name old_name in
            return @@ On_ast.Ident new_name
         )
-        original_names
+      @@ List.enum original_names
     in
     let name_pairs = List.combine original_names new_names in
     let appls_for_funs = List.fold_left (fun appl_dict -> fun base_fun ->
@@ -171,18 +169,22 @@ let rec rec_transform (e1 : On_ast.expr) : On_ast.expr m =
   | Match (subject, pat_expr_list) ->
     let%bind transformed_subject = rec_transform subject in
     let%bind transformed_list =
-      sequence @@ List.map
+      lift1 List.of_enum @@
+      sequence @@ Enum.map
         (fun (pat, expr) ->
            let%bind transformed_pat_expr = rec_transform expr in
            return (pat, transformed_pat_expr)
-        ) pat_expr_list
+        ) @@ List.enum pat_expr_list
     in
     return @@ On_ast.Match(transformed_subject, transformed_list)
   | VariantExpr (v_label, e') ->
     let%bind transformed_e' = rec_transform e' in
     return @@ On_ast.VariantExpr(v_label, transformed_e')
   | List expr_list ->
-    let%bind clean_expr_list = sequence @@ List.map rec_transform expr_list in
+    let%bind clean_expr_list =
+      lift1 List.of_enum @@
+      sequence @@ Enum.map rec_transform @@ List.enum expr_list
+    in
     return @@ On_ast.List clean_expr_list
   | ListCons (hd_expr, tl_expr) ->
     let%bind clean_hd_expr = rec_transform hd_expr in

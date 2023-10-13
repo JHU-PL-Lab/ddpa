@@ -9,7 +9,6 @@
   (libraries
     batteries
     jhupllib
-    monadlib
     odefa.ast
     odefa.utils
     pds-reachability

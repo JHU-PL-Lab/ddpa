@@ -490,9 +490,7 @@ let rec eliminate_var_pat (e : expr): expr m =
       |> Ident_map.enum
       |> Enum.map
         (fun (k,v) -> let%bind v' = eliminate_var_pat v in return (k,v'))
-      |> List.of_enum
       |> sequence
-      |> lift1 List.enum
       |> lift1 Ident_map.of_enum
     in
     return @@ Record (clean_map)
@@ -520,7 +518,8 @@ let rec eliminate_var_pat (e : expr): expr m =
       return (res_pat, new_expr)
     in
     let%bind new_path_expr_list =
-      sequence @@ List.map pat_expr_var_changer pat_expr_list
+      lift1 List.of_enum @@
+      sequence @@ Enum.map pat_expr_var_changer @@ List.enum pat_expr_list
     in
     let let_e2 = Match(new_subj, new_path_expr_list) in
     return @@ Let(Ident new_subj_name, clean_subject, let_e2)
