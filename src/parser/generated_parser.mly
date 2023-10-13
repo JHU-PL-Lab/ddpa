@@ -1,6 +1,7 @@
 %{
 open Odefa_ast;;
 open Ast;;
+open Util;;
 module List = BatList;;
 %}
 
@@ -42,7 +43,7 @@ module List = BatList;;
 %token DOUBLE_SEMICOLON
 
 %start <Odefa_ast.Ast.expr> prog
-%start <Odefa_ast.Ast.expr option> delim_expr
+%start <delim_expr_result> delim_expr
 
 %%
 
@@ -53,11 +54,11 @@ prog:
 
 delim_expr:
   | EOF
-      { None }
+      { NoExpr }
   | expr DOUBLE_SEMICOLON
-      { Some($1) }
+      { SomeExpr($1) }
   | expr EOF
-      { Some($1) }
+      { LastExpr($1) }
   ;
 
 expr:

@@ -6,6 +6,8 @@ open Batteries;;
 
 open Lexing;;
 
+open Util;;
+
 exception Parse_error of exn * int * int * string;;
 
 let handle_parse_error buf f =
@@ -26,7 +28,15 @@ let parse_expressions (input : IO.input) =
     handle_parse_error buf @@ fun () ->
     Generated_parser.delim_expr Generated_lexer.token buf
   in
-  LazyList.from_while read_expr;;
+  LazyList.unfold
+    true
+    (fun keep_going ->
+      if not keep_going then None else
+        match read_expr () with
+        | NoExpr -> None
+        | LastExpr e -> Some(e, false)
+        | SomeExpr e -> Some(e, true)
+    )
 
 let parse_program (input : IO.input) =
   let buf = Lexing.from_channel input in
